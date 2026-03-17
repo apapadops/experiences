@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Architecture Blueprint Export</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; 
+            background-color: #f8fafc; font-family: 'Poppins', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        #map-container { width: 100vw; height: 100vh; cursor: grab; display: block; }
+        #map-container:active { cursor: grabbing; }
+
+        /* Force Node Labels to Strictly Black without overriding node fill/stroke */
+        .node-label, text, #map-container span { 
+            fill: #000000 !important; color: #000000 !important; font-weight: 500 !important; 
+        }
+
+        /* Tool Bages Restoration - Clean White */
+        .system-badge { 
+            background-color: #ffffff !important; 
+            border: 1px solid #f1f5f9 !important;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        /* Animations */
+        @keyframes dash-flow { to { stroke-dashoffset: -24; } }
+        .bottleneck-flow { stroke-dasharray: 12, 12; animation: dash-flow 1s linear infinite; }
+        @keyframes hazard-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .animate-hazard-ring { animation: hazard-spin 6s linear infinite; transform-origin: center; }
+        @keyframes pain-pulse {
+          0%, 100% { opacity: 0.3; transform: scale(0.85); filter: blur(24px) brightness(1); }
+          50% { opacity: 0.8; transform: scale(1.15); filter: blur(36px) brightness(1.4); }
+        }
+        .animate-pain-pulse { animation: pain-pulse 2s ease-in-out infinite; }
+
+        /* Tooltip Master Classes */
+        .tooltip-base {
+            position: absolute;
+            pointer-events: none;
+            display: none;
+            z-index: 9999;
+            width: 320px;
+            transition: opacity 0.15s ease-out;
+        }
+
+        /* Scenario A: LIGHT (Node Information) */
+        .tooltip-light {
+            background: #ffffff;
+            color: #1e293b;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            border: 1px solid #f1f5f9;
+        }
+
+        /* Scenario B: DARK (Issue Detail) */
+        .tooltip-dark {
+            background: #0f172a;
+            color: #ffffff;
+            padding: 1.25rem;
+            border-radius: 1rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border: 1px solid #334155;
+        }
+
+        .pill-light {
+            background-color: #f1f5f9;
+            color: #64748b;
+            border-radius: 9999px;
+            padding: 4px 12px;
+            font-size: 10px;
+            font-weight: 700;
+            display: inline-block;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        /* UI Overlays */
+        .legend-panel {
+            position: fixed;
+            top: 24px;
+            left: 24px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 1.5rem;
+            border-radius: 1.25rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #f1f5f9;
+            z-index: 8000;
+            width: 280px;
+            backdrop-filter: blur(8px);
+        }
+
+        .legend-toggle-btn {
+            position: fixed;
+            bottom: 32px;
+            left: 32px;
+            background: white;
+            color: #334155;
+            padding: 12px 24px;
+            border-radius: 9999px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            font-weight: 700;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border: 1px solid #f1f5f9;
+            cursor: pointer;
+            z-index: 8001;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div id="tooltip" class="tooltip-base"></div>
+    
+    <div id="legend-panel" class="legend-panel hidden">
+        <h4 style="font-size:10px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.2em;margin-bottom:16px;">Swimlanes</h4>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <span style="width:10px;height:10px;border-radius:50%;background:#007AFF;display:inline-block;flex-shrink:0;box-shadow:0 0 0 2px white, 0 0 0 3px #007AFF44;"></span>
+        <span style="font-size:11px;font-weight:600;color:#1e293b;text-transform:capitalize;">employee</span>
+      </div><div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <span style="width:10px;height:10px;border-radius:50%;background:#FF3B30;display:inline-block;flex-shrink:0;box-shadow:0 0 0 2px white, 0 0 0 3px #FF3B3044;"></span>
+        <span style="font-size:11px;font-weight:600;color:#1e293b;text-transform:capitalize;">hrbp</span>
+      </div><div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <span style="width:10px;height:10px;border-radius:50%;background:#34C759;display:inline-block;flex-shrink:0;box-shadow:0 0 0 2px white, 0 0 0 3px #34C75944;"></span>
+        <span style="font-size:11px;font-weight:600;color:#1e293b;text-transform:capitalize;">hr ops</span>
+      </div><div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <span style="width:10px;height:10px;border-radius:50%;background:#FFCC00;display:inline-block;flex-shrink:0;box-shadow:0 0 0 2px white, 0 0 0 3px #FFCC0044;"></span>
+        <span style="font-size:11px;font-weight:600;color:#1e293b;text-transform:capitalize;">finance</span>
+      </div><div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <span style="width:10px;height:10px;border-radius:50%;background:#AF52DE;display:inline-block;flex-shrink:0;box-shadow:0 0 0 2px white, 0 0 0 3px #AF52DE44;"></span>
+        <span style="font-size:11px;font-weight:600;color:#1e293b;text-transform:capitalize;">line manager</span>
+      </div>
+        <div style="height:1px;background:#f1f5f9;margin:20px 0;"></div>
+        <h4 style="font-size:10px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.2em;margin-bottom:16px;">Diagnostics</h4>
+        
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <div style="width:28px;height:28px;border-radius:10px;background:#f59e0b;display:flex;align-items:center;justify-content:center;color:white;font-size:12px;">🔥</div>
+        <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Pain Point</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <div style="width:28px;height:28px;border-radius:10px;background:#ef4444;display:flex;align-items:center;justify-content:center;color:white;font-size:12px;">⚠️</div>
+        <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Critical Risk</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <div style="width:28px;height:28px;border-radius:10px;background:#f97316;display:flex;align-items:center;justify-content:center;color:white;font-size:12px;">⏳</div>
+        <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Bottleneck</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:28px;height:28px;border-radius:10px;background:#475569;display:flex;align-items:center;justify-content:center;color:white;font-size:12px;">✖️</div>
+        <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Disruption</span>
+      </div>
+    
+    </div>
+
+    <button id="legend-toggle" class="legend-toggle-btn">
+        <span>🗺️</span> Legend
+    </button>
+
+    <div id="map-container">
+        <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" class="block overflow-visible font-sans" overflow="visible"><defs><filter id="line-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8" result="blur"/><feComposite in="SourceGraphic" in2="blur" operator="over"/></filter></defs><g id="content-g"><g style="opacity: 1; transition: opacity 0.4s;"><rect x="-100" y="35" width="7800" height="170" fill="#007AFF" opacity="0.04" rx="30"/><g transform="translate(-80, 120)" class="select-none pointer-events-none"><text x="0" y="8" fill="#007AFF" font-weight="500" font-size="24" text-anchor="start" opacity="0.4">Employee</text></g></g><g style="opacity: 1; transition: opacity 0.4s;"><rect x="-100" y="215" width="7800" height="170" fill="#FF3B30" opacity="0.04" rx="30"/><g transform="translate(-80, 300)" class="select-none pointer-events-none"><text x="0" y="8" fill="#FF3B30" font-weight="500" font-size="24" text-anchor="start" opacity="0.4">Hrbp</text></g></g><g style="opacity: 1; transition: opacity 0.4s;"><rect x="-100" y="395" width="7800" height="170" fill="#34C759" opacity="0.04" rx="30"/><g transform="translate(-80, 480)" class="select-none pointer-events-none"><text x="0" y="8" fill="#34C759" font-weight="500" font-size="24" text-anchor="start" opacity="0.4">Hr ops</text></g></g><g style="opacity: 1; transition: opacity 0.4s;"><rect x="-100" y="575" width="7800" height="170" fill="#FFCC00" opacity="0.04" rx="30"/><g transform="translate(-80, 660)" class="select-none pointer-events-none"><text x="0" y="8" fill="#FFCC00" font-weight="500" font-size="24" text-anchor="start" opacity="0.4">Finance</text></g></g><g style="opacity: 1; transition: opacity 0.4s;"><rect x="-100" y="755" width="7800" height="170" fill="#AF52DE" opacity="0.04" rx="30"/><g transform="translate(-80, 840)" class="select-none pointer-events-none"><text x="0" y="8" fill="#AF52DE" font-weight="500" font-size="24" text-anchor="start" opacity="0.4">Line manager</text></g></g><g style="opacity: 1; transition: opacity 0.4s;"><path d="M 300 120 L 350 120 L 405 120 C 465 120, 465 300, 525 300 L 580 300" stroke="#007AFF" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="none" class="transition-all duration-300 cursor-pointer "/></g><g style="opacity: 1; transition: opacity 0.4s;"><path d="M 580 300 L 630 300 L 685 300 C 745 300, 745 480, 805 480 L 860 480" stroke="#FF3B30" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="none" class="transition-all duration-300 cursor-pointer "/></g><g style="opacity: 1; transition: opacity 0.4s;"><path d="M 860 480 L 910 480 L 965 480 C 1025 480, 1025 300, 1085 300 L 1140 300" stroke="#34C759" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="none" class="transition-all duration-300 cursor-pointer "/></g><g style="opacity: 1; transition: opacity 0.4s;"><path d="M 1140 300 L 1190 300 L 1420 300" stroke="#FF3B30" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="none" class="transition-all duration-300 cursor-pointer "/></g><g style="opacity: 1; transition: opacity 0.4s;"><path d="M 1420 300 L 1470 300 L 1700 300" stroke="#FF3B30" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="none" class="transition-all duration-300 cursor-pointer "/></g><g style="opacity: 1; transition: opacity 0.4s;"><path d="M 1700 300 L 1750 300 L 1980 300" stroke="#FF3B30" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="none" class="transition-all duration-300 cursor-pointer "/></g><g style="opacity: 1; transition: opacity 0.4s;"><path d="M 1980 300 L 2030 300 L 2085 300 C 2145 300, 2145 480, 2205 480 L 2260 480" stroke="#FF3B30" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="none" class="transition-all duration-300 cursor-pointer "/></g><g style="opacity: 1; transition: opacity 0.4s;"><path d="M 2260 480 L 2310 480 L 2540 480" stroke="#34C759" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="none" class="transition-all duration-300 cursor-pointer "/></g><g style="opacity: 1; transition: opacity 0.4s;"><path d="M 2540 480 L 2590 480 L 2645 480 C 2705 480, 2705 120, 2765 120 L 2820 120" stroke="#34C759" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="none" class="transition-all duration-300 cursor-pointer "/></g><g style="opacity: 1; transition: opacity 0.4s;"><path d="M 2820 120 L 2870 120 L 2925 120 C 2985 120, 2985 480, 3045 480 L 3100 480" stroke="#007AFF" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="none" class="transition-all duration-300 cursor-pointer bottleneck-flow"/></g><g style="opacity: 1; transition: opacity 0.4s;"><path d="M 3100 480 L 3150 480 L 3380 480" stroke="#34C759" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="none" class="transition-all duration-300 cursor-pointer "/></g><g style="opacity: 1; transition: opacity 0.4s;"><path d="M 3380 480 L 3430 480 L 3660 480" stroke="#34C759" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="none" class="transition-all duration-300 cursor-pointer "/></g><g style="opacity: 1; transition: opacity 0.4s;"><path d="M 3940 840 L 3990 840 L 4045 840 C 4105 840, 4105 300, 4165 300 L 4220 300" stroke="#AF52DE" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="none" class="transition-all duration-300 cursor-pointer "/></g><g style="opacity: 1; transition: opacity 0.4s;"><path d="M 4220 300 L 4270 300 L 4500 300" stroke="#FF3B30" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="none" class="transition-all duration-300 cursor-pointer "/></g><g style="opacity: 1; transition: opacity 0.4s;"><path d="M 4500 300 L 4550 300 L 4780 300" stroke="#FF3B30" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="none" class="transition-all duration-300 cursor-pointer "/></g><g style="opacity: 1; transition: opacity 0.4s;"><path d="M 4780 300 L 4830 300 L 5060 300" stroke="#FF3B30" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="none" class="transition-all duration-300 cursor-pointer "/></g><g style="opacity: 1; transition: opacity 0.4s;"><path d="M 5060 300 L 5110 300 L 5165 300 C 5225 300, 5225 480, 5285 480 L 5340 480" stroke="#FF3B30" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="none" class="transition-all duration-300 cursor-pointer "/></g><g style="opacity: 1; transition: opacity 0.4s;"><path d="M 5340 480 L 5390 480 L 5445 480 C 5505 480, 5505 300, 5565 300 L 5620 300" stroke="#34C759" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="none" class="transition-all duration-300 cursor-pointer "/></g><g style="opacity: 1; transition: opacity 0.4s;"><path d="M 5620 300 L 5670 300 L 5900 300" stroke="#FF3B30" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="none" class="transition-all duration-300 cursor-pointer "/></g><g style="opacity: 1; transition: opacity 0.4s;"><path d="M 5900 300 L 5950 300 L 6180 300" stroke="#FF3B30" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="none" class="transition-all duration-300 cursor-pointer "/></g><g style="opacity: 1; transition: opacity 0.4s;"><path d="M 6180 300 L 6230 300 L 6460 300" stroke="#FF3B30" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="none" class="transition-all duration-300 cursor-pointer "/></g><g style="opacity: 1; transition: opacity 0.4s;"><path d="M 6460 300 L 6510 300 L 6565 300 C 6625 300, 6625 480, 6685 480 L 6740 480" stroke="#FF3B30" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="none" class="transition-all duration-300 cursor-pointer "/></g><g style="opacity: 1; transition: opacity 0.4s;"><path d="M 6740 480 L 6790 480 L 7020 480" stroke="#34C759" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="none" class="transition-all duration-300 cursor-pointer "/></g><g style="opacity: 1; transition: opacity 0.4s;"><path d="M 7020 480 L 7070 480 L 7126.875 480 C 7186.875 480, 7186.875 650, 7246.875 650 L 7303.75 650" stroke="#34C759" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="none" class="transition-all duration-300 cursor-pointer "/></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="150" y="-30" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Employee triggers the offboarding process." data-action-label="[Implied] Submit formal resignation"><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Bob / email</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="relative z-10 flex items-center justify-center w-11 h-11 border-[8px] bg-white shadow-sm" style="border-color: rgb(0, 122, 255); border-radius: 50%; transform: none;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">[implied] submit formal resignation</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="430" y="150" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Alerted to the employee's departure." data-action-label="[Implied] Receive resignation notification"><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Email</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="relative z-10 flex items-center justify-center w-11 h-11 border-[8px] bg-white shadow-sm" style="border-color: rgb(255, 59, 48); border-radius: 50%; transform: none;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">[implied] receive resignation notification</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="710" y="330" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Alerted to begin operational offboarding." data-action-label="[Implied] Receive resignation trigger"><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Jira / bob</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="relative z-10 flex items-center justify-center w-11 h-11 border-[8px] bg-white shadow-sm" style="border-color: rgb(52, 199, 89); border-radius: 50%; transform: none;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">[implied] receive resignation trigger</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="990" y="150" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Books time to discuss departure motives." data-action-label="Schedule Exit Interview"><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Calendar</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="relative z-10 flex items-center justify-center w-11 h-11 border-[8px] bg-white shadow-sm" style="border-color: rgb(255, 59, 48); border-radius: 50%; transform: none;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">Schedule exit interview</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="1270" y="150" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Facilitates the offboarding discussion." data-action-label="Conduct Exit Interview"><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Live / zoom</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="relative z-10 flex items-center justify-center w-11 h-11 border-[8px] bg-white shadow-sm" style="border-color: rgb(255, 59, 48); border-radius: 50%; transform: none;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">Conduct exit interview</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="1550" y="150" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Documents the employee's motives for leaving." data-action-label="Gather data and insights"><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Manual / doc</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="relative z-10 flex items-center justify-center w-11 h-11 border-[8px] bg-white shadow-sm" style="border-color: rgb(255, 59, 48); border-radius: 50%; transform: none;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">Gather data and insights</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="1830" y="150" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Aggregates attrition data for leadership review." data-action-label="Build diagnosis for monthly Director meeting"><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Excel / ppt</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="relative z-10 flex items-center justify-center w-11 h-11 border-[8px] bg-white shadow-sm" style="border-color: rgb(255, 59, 48); border-radius: 50%; transform: none;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">Build diagnosis for monthly director meeting</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="2110" y="330" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Requests the final due amounts." data-action-label="Notify Payroll/Finance for final calculation"><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Email</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="relative z-10 flex items-center justify-center w-11 h-11 border-[8px] bg-white shadow-sm" style="border-color: rgb(52, 199, 89); border-radius: 50%; transform: none;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">Notify payroll/finance for final calculation</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="2390" y="330" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Generates formal termination paperwork." data-action-label="Prepare exit documents"><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Manual / docusign</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="relative z-10 flex items-center justify-center w-11 h-11 border-[8px] bg-white shadow-sm" style="border-color: rgb(52, 199, 89); border-radius: 50%; transform: none;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">Prepare exit documents</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="2670" y="-30" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Executes the legal offboarding paperwork." data-action-label="[Implied] Sign exit documents"><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Docusign</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="relative z-10 flex items-center justify-center w-11 h-11 border-[8px] bg-white shadow-sm" style="border-color: rgb(0, 122, 255); border-radius: 50%; transform: none;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">[implied] sign exit documents</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="2950" y="330" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Arranges laptop/asset retrieval." data-action-label="Coordinate equipment return"><div class="absolute bottom-[calc(50%+55px)] flex justify-center gap-2 w-full"><div data-issue-type="bottleneck" data-issue-desc="bottleneck: [Inferred] Dependency on employee action creates latency." class="w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-lg cursor-help pointer-events-auto transition-transform hover:scale-110 shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-hourglass w-4 h-4"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></svg></div></div><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Email</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="relative z-10 flex items-center justify-center w-11 h-11 border-[8px] bg-white shadow-sm" style="border-color: rgb(52, 199, 89); border-radius: 50%; transform: none;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">Coordinate equipment return</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="3230" y="330" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Disables active directory and tool access." data-action-label="[Implied] Revoke system access"><div class="absolute w-[60px] h-[60px] border-[3px] border-dashed rounded-full z-30 animate-hazard-ring pointer-events-none border-red-500/80"></div><div class="absolute bottom-[calc(50%+55px)] flex justify-center gap-2 w-full"><div data-issue-type="risk" data-issue-desc="risk: [Inferred] Sensitive security step; failure exposes company data." class="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg cursor-help pointer-events-auto transition-transform hover:scale-110 shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-triangle-alert w-4 h-4"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></div></div><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">It portal / bob</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="relative z-10 flex items-center justify-center w-11 h-11 border-[8px] bg-white shadow-sm" style="border-color: rgb(52, 199, 89); border-radius: 50%; transform: none;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">[implied] revoke system access</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="3510" y="330" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Disburses final salary and accrued benefits." data-action-label="[Implied] Process final payout"><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Bank portal</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="shadow-lg relative z-10 w-[6px] h-14" style="background-color: rgb(255, 204, 0); border-radius: 4px;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">[implied] process final payout</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="3790" y="690" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Initiates involuntary exit process." data-action-label="[Implied] Decide on termination"><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Manual</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="relative z-10 flex items-center justify-center w-11 h-11 border-[8px] bg-white shadow-sm" style="border-color: rgb(175, 82, 222); border-radius: 50%; transform: none;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">[implied] decide on termination</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="4070" y="150" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Gets notified of the termination intent." data-action-label="Receive news from Line Manager"><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Email</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="relative z-10 flex items-center justify-center w-11 h-11 border-[8px] bg-white shadow-sm" style="border-color: rgb(255, 59, 48); border-radius: 50%; transform: none;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">Receive news from line manager</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="4350" y="150" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Books meeting to understand the full picture." data-action-label="Schedule sync with Line Manager"><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Calendar</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="relative z-10 flex items-center justify-center w-11 h-11 border-[8px] bg-white shadow-sm" style="border-color: rgb(255, 59, 48); border-radius: 50%; transform: none;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">Schedule sync with line manager</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="4630" y="150" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Validates reasoning and compliance risks." data-action-label="[Implied] Discuss termination context"><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Live / zoom</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="relative z-10 flex items-center justify-center w-11 h-11 border-[8px] bg-white shadow-sm" style="border-color: rgb(255, 59, 48); border-radius: 50%; transform: none;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">[implied] discuss termination context</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="4910" y="150" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Triggers the operational exit machinery." data-action-label="Communicate to HR Ops for internal processes"><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Jira / email</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="relative z-10 flex items-center justify-center w-11 h-11 border-[8px] bg-white shadow-sm" style="border-color: rgb(255, 59, 48); border-radius: 50%; transform: none;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">Communicate to hr ops for internal processes</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="5190" y="330" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Prepares the legal and financial exit package." data-action-label="[Implied] Calculate final dues &amp; prepare docs"><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Excel / docusign</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="relative z-10 flex items-center justify-center w-11 h-11 border-[8px] bg-white shadow-sm" style="border-color: rgb(52, 199, 89); border-radius: 50%; transform: none;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">[implied] calculate final dues &amp; prepare docs</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="5470" y="150" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Supports Line Manager during the exit conversation." data-action-label="Participate in termination interview"><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Live / zoom</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="relative z-10 flex items-center justify-center w-11 h-11 border-[8px] bg-white shadow-sm" style="border-color: rgb(255, 59, 48); border-radius: 50%; transform: none;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">Participate in termination interview</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="5750" y="150" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Formalizes the exit in the system." data-action-label="Confirm termination"><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Email / bob</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="relative z-10 flex items-center justify-center w-11 h-11 border-[8px] bg-white shadow-sm" style="border-color: rgb(255, 59, 48); border-radius: 50%; transform: none;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">Confirm termination</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="6030" y="150" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Documents the context of the involuntary exit." data-action-label="Gather data and insights"><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Manual / doc</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="relative z-10 flex items-center justify-center w-11 h-11 border-[8px] bg-white shadow-sm" style="border-color: rgb(255, 59, 48); border-radius: 50%; transform: none;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">Gather data and insights</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="6310" y="150" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Aggregates attrition data for leadership review." data-action-label="Build diagnosis for monthly Director meeting"><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Excel / ppt</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="relative z-10 flex items-center justify-center w-11 h-11 border-[8px] bg-white shadow-sm" style="border-color: rgb(255, 59, 48); border-radius: 50%; transform: none;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">Build diagnosis for monthly director meeting</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="6590" y="330" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Arranges laptop/asset retrieval." data-action-label="Coordinate equipment return"><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Email</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="relative z-10 flex items-center justify-center w-11 h-11 border-[8px] bg-white shadow-sm" style="border-color: rgb(52, 199, 89); border-radius: 50%; transform: none;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">Coordinate equipment return</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="6870" y="330" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Disables active directory and tool access." data-action-label="[Implied] Revoke system access"><div class="absolute w-[60px] h-[60px] border-[3px] border-dashed rounded-full z-30 animate-hazard-ring pointer-events-none border-red-500/80"></div><div class="absolute bottom-[calc(50%+55px)] flex justify-center gap-2 w-full"><div data-issue-type="risk" data-issue-desc="risk: [Inferred] High security risk; access must be revoked immediately." class="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg cursor-help pointer-events-auto transition-transform hover:scale-110 shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-triangle-alert w-4 h-4"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></div></div><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">It portal / bob</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="relative z-10 flex items-center justify-center w-11 h-11 border-[8px] bg-white shadow-sm" style="border-color: rgb(52, 199, 89); border-radius: 50%; transform: none;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">[implied] revoke system access</span></div></div></foreignObject></g><g style="opacity: 1; transition: opacity 0.5s;"><foreignObject x="7153.75" y="500" width="300" height="300" style="pointer-events: none; overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative flex items-center justify-center font-sans" data-notes="Disburses final salary and accrued benefits." data-action-label="[Implied] Process final payout"><div class="absolute bottom-[calc(50%+26px)] flex justify-center w-full"><div class="system-badge flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-800 border border-slate-100 dark:border-white/5 rounded-full shadow-lg h-[24px] pointer-events-none"><span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Bank portal</span></div></div><div class="relative z-20 flex items-center justify-center pointer-events-auto cursor-pointer "><div class="shadow-lg relative z-10 w-[6px] h-14" style="background-color: rgb(255, 204, 0); border-radius: 4px;"></div></div><div class="absolute top-[calc(50%+28px)] flex justify-center w-full"><span class="text-[12px] font-medium text-slate-800 dark:text-white whitespace-nowrap">[implied] process final payout</span></div></div></foreignObject></g></g></svg>
+    </div>
+
+    <script>
+        const container = document.getElementById('map-container');
+        const content = document.getElementById('content-g');
+        const tooltip = document.getElementById('tooltip');
+        const legendPanel = document.getElementById('legend-panel');
+        const legendToggle = document.getElementById('legend-toggle');
+
+        let isDragging = false;
+        let startX, startY;
+        let viewBox = { x: 50, y: 50, k: 0.8 };
+
+        function updateTransform() {
+            if (content) {
+                content.setAttribute('transform', 'translate(' + viewBox.x + ',' + viewBox.y + ') scale(' + viewBox.k + ')');
+            }
+        }
+
+        // --- Legend Logic ---
+        legendToggle.onclick = () => legendPanel.classList.toggle('hidden');
+
+        // --- Navigation Logic ---
+        container.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            if (e.target.closest('.legend-toggle-btn') || e.target.closest('.legend-panel')) return;
+            isDragging = true;
+            startX = e.clientX - viewBox.x;
+            startY = e.clientY - viewBox.y;
+            container.style.cursor = 'grabbing';
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+            container.style.cursor = 'grab';
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            viewBox.x = e.clientX - startX;
+            viewBox.y = e.clientY - startY;
+            updateTransform();
+        });
+
+        container.addEventListener('wheel', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                const zoomFactor = Math.exp(-e.deltaY * 0.001);
+                const newK = Math.min(Math.max(viewBox.k * zoomFactor, 0.01), 10);
+                const rect = container.getBoundingClientRect();
+                const mx = e.clientX - rect.left;
+                const my = e.clientY - rect.top;
+                const worldX = (mx - viewBox.x) / viewBox.k;
+                const worldY = (my - viewBox.y) / viewBox.k;
+                viewBox.k = newK;
+                viewBox.x = mx - worldX * newK;
+                viewBox.y = my - worldY * newK;
+                updateTransform();
+            } else {
+                viewBox.x -= e.deltaX;
+                viewBox.y -= e.deltaY;
+                updateTransform();
+            }
+        }, { passive: false });
+
+        // --- Interaction Logic: DUAL TOOLTIP ---
+        container.addEventListener('click', (e) => {
+            const issueTarget = e.target.closest('[data-issue-type]');
+            const nodeTarget = e.target.closest('[data-notes]');
+
+            if (issueTarget) {
+                e.stopPropagation();
+                const type = issueTarget.getAttribute('data-issue-type');
+                const desc = issueTarget.getAttribute('data-issue-desc');
+                const cleanType = type.replace('_', ' ').toUpperCase();
+                
+                let icon = '⚠️';
+                if(type.includes('pain')) icon = '🔥';
+                if(type.includes('bottle')) icon = '⏳';
+                if(type.includes('disrupt') || type.includes('broken')) icon = '✖️';
+
+                tooltip.className = 'tooltip-base tooltip-dark';
+                tooltip.style.display = 'block';
+                tooltip.innerHTML = `
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;border-bottom:1px solid #334155;padding-bottom:10px;">
+                        <span style="font-size:16px;">${icon}</span>
+                        <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.2em;color:#f8fafc;">${cleanType}</span>
+                    </div>
+                    <div style="font-size:13px;color:#cbd5e1;line-height:1.5;">${desc}</div>
+                `;
+                positionTooltip(e.clientX, e.clientY);
+                return;
+            }
+
+            if (nodeTarget) {
+                e.stopPropagation();
+                const notes = nodeTarget.getAttribute('data-notes');
+                const action = nodeTarget.getAttribute('data-action-label') || 'Process Step';
+                
+                tooltip.className = 'tooltip-base tooltip-light';
+                tooltip.style.display = 'block';
+                tooltip.innerHTML = `
+                    <div class="pill-light">Node Information</div>
+                    <div style="font-size:14px;font-weight:400;color:#1e293b;margin-bottom:8px;line-height:1.2;">${action}</div>
+                    <div style="font-size:13px;color:#64748b;line-height:1.6;font-style:italic;border-left:3px solid #e2e8f0;padding-left:14px;">${notes || 'No extended logic notes defined for this step.'}</div>
+                `;
+                positionTooltip(e.clientX, e.clientY);
+                return;
+            }
+
+            // Hide if clicked empty space
+            tooltip.style.display = 'none';
+        });
+
+        function positionTooltip(mouseX, mouseY) {
+            let x = mouseX + 24;
+            let y = mouseY + 24;
+            const width = 320;
+            const height = 200; // approximate
+            
+            if (x + width > window.innerWidth) x = mouseX - width - 24;
+            if (y + height > window.innerHeight) y = mouseY - height - 24;
+            
+            tooltip.style.left = x + 'px';
+            tooltip.style.top = y + 'px';
+        }
+
+        updateTransform();
+    </script>
+</body>
+</html>
